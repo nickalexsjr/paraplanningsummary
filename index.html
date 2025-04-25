@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CTM Task Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background-color: #0F172A;
+      color: #E2E8F0;
+      font-family: 'Inter', sans-serif;
+    }
+    
+    /* Modern Tech Styling */
+    .mono-text {
+      font-family: 'Roboto Mono', monospace;
+      letter-spacing: -0.5px;
+    }
+    
+    .dashboard-card {
+      background-color: #1E293B;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      margin-bottom: 1.5rem;
+      border: 1px solid rgba(100, 116, 139, 0.2);
+    }
+    
+    th, td { 
+      white-space: nowrap; 
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid #334155;
+      font-size: 0.875rem;
+    }
+    
+    tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .nav-btn {
+      background-color: #334155;
+      padding: 0.5rem 1rem;
+      margin-right: 0.5rem;
+      border-radius: 8px;
+      color: white;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    
+    .nav-btn:hover {
+      background-color: #475569;
+    }
+    
+    .nav-btn.active {
+      background-color: #6366F1;
+    }
+    
+    .section {
+      display: none;
+    }
+    
+    .section.active {
+      display: block;
+      animation: fadeIn 0.3s ease-in-out;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    .stat-card {
+      background-color: rgba(59, 130, 246, 0.1);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      border-left: 4px solid #3B82F6;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .stat-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+    }
+    
+    .stat-card.purple {
+      background-color: rgba(99, 102, 241, 0.1);
+      border-left: 4px solid #6366F1;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    
+    .stat-label {
+      font-size: 0.875rem;
+      color: #94A3B8;
+      margin-bottom: 0.5rem;
+      font-family: 'Roboto Mono', monospace;
+    }
+    
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #F8FAFC;
+      font-family: 'Roboto Mono', monospace;
+    }
+    
+    .filter-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    select, button {
+      padding: 0.5rem;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+      font-family: 'Roboto Mono', monospace;
+    }
+    
+    select {
+      background-color: #334155;
+      color: white;
+      border: 1px solid #475569;
+    }
+    
+    .table-container {
+      overflow-x: auto;
+      max-width: 100%;
+      border-radius: 0.5rem;
+      border: 1px solid #334155;
+      background-color: rgba(15, 23, 42, 0.5);
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    thead {
+      background-color: rgba(51, 65, 85, 0.5);
+    }
+    
+    /* Loading spinner */
+    .spinner {
+      display: inline-block;
+      width: 1.75rem;
+      height: 1.75rem;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #6366F1;
+      animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .text-green {
+      color: #10B981;
+    }
+    
+    .text-red {
+      color: #EF4444;
+    }
+    
+    /* Sidebar style */
+    .app-container {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      min-height: 100vh;
+    }
+    
+    .sidebar {
+      background-color: #1E293B;
+      border-right: 1px solid #334155;
+      padding: 1.5rem 1rem;
+      box-shadow: 5px 0 15px rgba(0,0,0,0.1);
+    }
+    
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 2rem;
+      color: #F8FAFC;
+      font-size: 1.25rem;
+      font-weight: 600;
+      font-family: 'Roboto Mono', monospace;
+    }
+    
+    .sidebar-menu {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    .menu-item {
+      display: flex;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      border-radius: 0.5rem;
+      color: #94A3B8;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      font-family: 'Roboto Mono', monospace;
+    }
+    
+    .menu-item:before {
+      content: '';
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      height: 2px;
+      width: 0;
+      background-color: #6366F1;
+      transition: width 0.3s ease;
+    }
+    
+    .menu-item:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+      color: #F8FAFC;
+    }
+    
+    .menu-item:hover:before {
+      width: 100%;
+    }
+    
+    .menu-item.active {
+      background-color: #6366F1;
+      color: white;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+    
+    .menu-item.active:before {
+      width: 0;
+    }
+    
+    .menu-item svg {
+      margin-right: 0.75rem;
+      width: 1.25rem;
+      height: 1.25rem;
+    }
+    
+    .main-content {
+      padding: 2rem;
+    }
+
+    /* Improved Distribution Charts */
+    .distribution-container {
+      background-color: rgba(15, 23, 42, 0.5);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      max-height: 500px;
+      overflow-y: auto;
+      border: 1px solid rgba(51, 65, 85, 0.5);
+    }
+    
+    .distribution-section {
+      margin-bottom: 2rem;
+    }
+    
+    .distribution-title {
+      font-size: 1.125rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: #F8FAFC;
+      font-family: 'Roboto Mono', monospace;
+    }
+    
+    .distribution-item {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 0.75rem;
+    }
+    
+    .distribution-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.375rem;
+    }
+    
+    .distribution-name {
+      font-weight: 500;
+    }
+    
+    .distribution-count {
+      color: #94A3B8;
+      font-size: 0.875rem;
+      font-family: 'Roboto Mono', monospace;
+    }
+    
+    .distribution-bar-container {
+      height: 0.5rem;
+      background-color: rgba(51, 65, 85, 0.5);
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+    
+    .distribution-bar {
+      height: 100%;
+      background-color: #6366F1;
+      border-radius: 9999px;
+      box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+      transition: width 0.5s ease-in-out;
+    }
+    
+    /* Glow effects and tech styling */
+    .glow-text {
+      text-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
+    }
+    
+    .btn-modern {
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s;
+      z-index: 1;
+    }
+    
+    .btn-modern:after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(255, 255, 255, 0.1);
+      z-index: -2;
+    }
+    
+    .btn-modern:before {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 0%;
+      height: 100%;
+      background-color: rgba(255, 255, 255, 0.15);
+      transition: all 0.3s;
+      z-index: -1;
+    }
+    
+    .btn-modern:hover:before {
+      width: 100%;
+    }
+    
+    /* High-tech scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: #1E293B;
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: #6366F1;
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 text-indigo-500">
+          <path d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z"></path>
+        </svg>
+        <span class="glow-text">Project Laos</span>
+      </div>
+      <div class="sidebar-menu">
+        <div class="menu-item active" data-section="dataInput">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="3" y1="9" x2="21" y2="9"></line>
+            <line x1="9" y1="21" x2="9" y2="9"></line>
+          </svg>
+          Dashboard
+        </div>
+        <div class="menu-item" data-section="summarySection">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+          Task Summary
+        </div>
+        <div class="menu-item" data-section="capacitySection">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          Capacity View
+        </div>
+        <div class="menu-item" data-section="ctmSection">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 5l0 14M5 12l14 0M8 8l8 8M16 8l-8 8"></path>
+          </svg>
+          CTM View
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="flex items-center justify-between mb-8">
+        <div>
+          <h1 class="text-3xl font-bold text-white glow-text mono-text">Paraplanning Task Dashboard</h1>
+          <p class="text-sm text-gray-400 mt-1 mono-text" id="generatedDate">Date Generated: Not yet run</p>
+        </div>
+        <div class="space-x-3">
+          <button onclick="exportToCSV('activeSection')" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded text-white btn-modern">Export Excel</button>
+          <button onclick="exportToPDF('activeSection')" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-white btn-modern">Export PDF</button>
+        </div>
+      </header>
+
+      <!-- Data Input Section -->
+      <section id="dataInput" class="section active">
+        <div class="dashboard-card">
+          <h2 class="text-2xl font-semibold mb-4 mono-text">Data Input</h2>
+          <label for="dataInput" class="block text-md text-gray-400 mb-2 mono-text">Paste Excel Data (Tab-separated)</label>
+          <textarea id="dataInputArea" rows="6" class="w-full p-3 text-sm text-black rounded bg-gray-100" placeholder="Paste your tab-separated Excel data here..."></textarea>
+          <button id="processBtn" onclick="processData()" class="mt-4 bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded text-white btn-modern">Generate Summary</button>
+        </div>
+      </section>
+
+      <!-- Task Summary Section -->
+      <section id="summarySection" class="section">
+        <div class="dashboard-card">
+          <h2 class="text-2xl font-semibold mb-4 mono-text">Task Summary</h2>
+          <div id="statsGrid" class="stats-grid">
+            <!-- Will be populated by JS -->
+          </div>
+          
+          <div class="mb-6">
+            <h3 class="text-xl font-semibold mb-3 mono-text">Milestone Breakdown</h3>
+            <div class="table-container">
+              <table id="summaryTable">
+                <thead>
+                  <tr>
+                    <th>Milestone Type</th>
+                    <th>Count</th>
+                    <th>Percentage</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Will be populated by JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div class="distribution-section">
+              <h3 class="distribution-title">Task Distribution</h3>
+              <div id="taskDistribution" class="distribution-container">
+                <!-- Will be populated by JS -->
+              </div>
+            </div>
+            <div class="distribution-section">
+              <h3 class="distribution-title">Assignees</h3>
+              <div id="assigneeDistribution" class="distribution-container">
+                <!-- Will be populated by JS -->
+              </div>
+            </div>
+          </div>
+          
+          <div class="distribution-section">
+            <h3 class="distribution-title">Tasks by CTM Team</h3>
+            <div id="teamDistribution" class="distribution-container">
+              <!-- Will be populated by JS -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Capacity Section -->
+      <section id="capacitySection" class="section">
+        <div class="dashboard-card">
+          <h2 class="text-2xl font-semibold mb-4 mono-text">Assignee Capacity View</h2>
+          <div class="table-container">
+            <table id="capacityTable">
+              <thead>
+                <tr>
+                  <th>Assignee</th>
+                  <th>Jobs To Do</th>
+                  <th>With Padua</th>
+                  <th>On Hold</th>
+                  <th>Other</th>
+                  <th>Total Tasks</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Will be populated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- CTM Section -->
+      <section id="ctmSection" class="section">
+        <div class="dashboard-card">
+          <h2 class="text-2xl font-semibold mb-4 mono-text">CTM Team Mapping</h2>
+          <div class="filter-container">
+            <select id="ctmFilterType" onchange="updateFilterOptions()" class="min-w-[150px]">
+              <option value="">Filter by...</option>
+              <option value="Assignee">Assignee</option>
+              <option value="Wealth Adviser">Wealth Adviser</option>
+              <option value="CTM Team">CTM Team</option>
+              <option value="Milestone">Milestone</option>
+            </select>
+            <select id="ctmFilterValue" class="min-w-[200px]">
+              <option value="">Select value</option>
+            </select>
+            <button onclick="renderCTMTable()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-white btn-modern">Apply</button>
+            <button onclick="clearCTMFilters()" class="bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded text-white btn-modern">Clear</button>
+          </div>
+          <div class="table-container">
+            <table id="ctmTable" class="text-xs">
+              <thead>
+                <tr>
+                  <th>Entity Name</th>
+                  <th>Milestone</th>
+                  <th>Wealth Adviser</th>
+                  <th>CTM Team</th>
+                  <th>Assignee</th>
+                  <th>Due Date</th>
+                  <th>Start Date</th>
+                  <th>Workflow Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Will be populated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // CTM Team Mapping
+    const CTM_TEAMS = {
+      "CTM North Team 1": ["Bradley Sweeney", "Brad Sweeney", "Kerry Corrigan", "Shiona Hargen"],
+      "CTM North Team 2": ["Shane Blair", "Terry Verhaar", "Peter Christopherson"],
+      "CTM North Team 3": ["Kym O'Brien", "Kym OBrien", "Voitek Biskup", "Tania Mawbey", "Ryan Carroll", "Matt Singh-Atwal"],
+      "CTM North Team 4": ["Carmel Gardner", "Kate Joseph", "Andrew Hyde", "Bruce Swinford", "Josh Snell", "Joshua Snell", "Matthew Bowyer"],
+      "CTM North Team 5": ["John Grant", "Eamon Hynes", "Cameron Gosson", "Valerie Villadiego"],
+      "CTM North Team 6": ["Mark Macgregor", "Richie Sorensen"],
+      "CTM Central Team 1": ["Pauline Song", "Steve Davis", "Stephen Davis", "Meher Chatterjee"],
+      "CTM Central Team 2": ["Paul Crowne", "Yogen Lal", "Greg Pride", "Tamim Marial", "Andrew Zheng"],
+      "CTM Central Team 3": ["Katrina Wroe", "Frank Tesoriero", "Garry Loffhagen", "Greg Armstrong"],
+      "CTM Central Team 4": ["Jo Potts", "Bethan Davis", "Ian Bacon", "Joshua Fredkin"],
+      "CTM Central Team 5": ["Matthew Taylor", "Matt Taylor", "Karoline Besser", "John Ravetali", "Mikaela Bailey"],
+      "CTM Central Team 6": ["Justin Pratt", "Andrew Rafty", "Kane Ellery"],
+      "CTM South Team 1": ["John Molnar", "Pandeli Halamandaris", "Lee Chew", "Lee Yuin Chew", "Murray Nichol", "Sosha Jay", "Chris Allimonos"],
+      "CTM South Team 2": ["Matthew Parrella", "Tristan Walker", "Michael Hack", "Callie Cook", "Marleine Attallah"],
+      "CTM South Team 3": ["Simon McGuirk", "David Tran", "Daniel Testa", "Dan Testa", "Jess Bell"],
+      "CTM South Team 4": ["Tracey Burns", "Barney Ellis", "Stuart McRae"],
+      "CTM South Team 5": ["Shane Hilton", "Brett Ricchini", "Ryan Sealey"],
+      "CTM South Team 6": ["Damian McVilly", "William Kelly", "Adrian Trinchera", "Jonathan Scholes", "Elli Miles"],
+      "CTM South Team 7": ["Peter Lemke", "Craig Ives", "Simon Hussey", "Luke Miraglia"],
+      "CTM South Team 8": ["Terry Hodge", "Nicholas Lee", "Nicolas Lee", "James Mitchell", "Ran Jin"],
+      "CTM West Team 1": ["Jeremy Leach", "Rob Ellis", "Jodi Escudier"],
+      "CTM West Team 2": ["David Catt", "Ian Evans", "Warren Halfpenny"],
+      "CTM West Team 3": ["Chris Elliott", "Emily Eaton", "Staci Sturzaker"],
+      "CTM West Team 4": ["Nicolas d'Emden", "Nicholas d'Emden", "Nicolas DEmden", "Nicholas DEmden", "Mari Bingham", "Robert Di Felice"],
+      "CTM West Team 5": ["Kevin McGrath", "Michelle Loughhead", "Michelle Loughead", "Aruna Baskaran", "Behrang Keshavarzi", "Ben Robertson"],
+      "CTM West Team 6": ["Brett Sibbison", "Tuan Le", "Stuart Howard"],
+      "CTM West Team 7": ["Daniel Roberts", "Deb Ball", "Deborah Ball", "Chris Van Den Berg", "Chris van den Berg", "Josh Brownlow"],
+      "CTM West Team 8": ["Ian Clark", "Alex Kerry", "Jac Holmes (X)", "Stephanie Yeung"],
+      "CTM West Team 9": ["Shane Fitzsimmons", "Kylie Maslin", "Scott Farrell", "Natalie Frasca"],
+      "CTM West Team 10": ["Samantha Murnane", "Kim Nguyen", "Raj Pradhan", "Alexandra Wiedenmann"],
+      "CTM East Team 1": ["Craig Smith", "Doug Davidson", "Matt Tod", "Liana Petrosyan"]
+    };
+
+    // Global state
+    let parsedRows = [];
+    let assigneeMap = {};
+    let counts = {};
+    let ctmTeamMap = {};
+    let activeSection = "dataInput";
+
+    // Fixed navigation handling - THIS IS THE FIXED PART
+    document.addEventListener('DOMContentLoaded', function() {
+      // Set up navigation event handlers properly
+      document.querySelectorAll('.menu-item').forEach(item => {
+        item.addEventListener('click', function() {
+          // Get the section to show
+          const sectionToShow = this.getAttribute('data-section');
+          
+          // Update active menu item highlighting
+          document.querySelectorAll('.menu-item').forEach(menuItem => {
+            menuItem.classList.remove('active');
+          });
+          this.classList.add('active');
+          
+          // Hide all sections
+          document.querySelectorAll('.section').forEach(section => {
+            section.classList.remove('active');
+          });
+          
+          // Show the selected section
+          const targetSection = document.getElementById(sectionToShow);
+          if (targetSection) {
+            targetSection.classList.add('active');
+            activeSection = sectionToShow;
+          }
+        });
+      });
+      
+      // Set initial active section
+      document.getElementById('dataInput').classList.add('active');
+      document.querySelector('[data-section="dataInput"]').classList.add('active');
+    });
+    
+    // Get CTM Team for a person
+    function getCTMTeam(name) {
+      if (!name) return 'Other';
+      
+      for (const [team, members] of Object.entries(CTM_TEAMS)) {
+        if (members.includes(name)) return team;
+      }
+      return 'Other';
+    }
+    
+    // Process the input data
+    function processData() {
+      const rawData = document.getElementById('dataInputArea').value.trim();
+      if (!rawData) {
+        alert('Please paste your Excel data first.');
+        return;
+      }
+      
+      // Show loading state
+      const processBtn = document.getElementById('processBtn');
+      const originalBtnText = processBtn.innerHTML;
+      processBtn.innerHTML = '<div class="spinner"></div> Processing...';
+      
+      // Initialize the data containers
+      parsedRows = [];
+      assigneeMap = {};
+      const taskOrder = [
+        'Lodge Advice Request',
+        'Info Required/On Hold',
+        'Update Advice Document',
+        'SOA with Padua',
+        'Findex PP Review Padua SOA',
+        'Research Tasks',
+        'Research Tasks - On Hold',
+        'Execution Only',
+        'Other'
+      ];
+      counts = {};
+      taskOrder.forEach(task => counts[task] = 0);
+      ctmTeamMap = {};
+      
+      try {
+        // Parse the tab-separated data
+        const parsed = Papa.parse(rawData, {
+          delimiter: "\t",
+          header: true,
+          skipEmptyLines: true
+        });
+        
+        if (!parsed.data || parsed.data.length === 0) {
+          throw new Error('No valid data found.');
+        }
+        
+        // Process each row
+        parsedRows = parsed.data
+          .filter(row => Object.values(row).some(val => val && val.trim()))
+          .map(row => {
+            // Get data from columns
+            const entityName = row['Entity Name'] || '';
+            const milestone = row['Milestone'] || '';
+            const wealthAdviser = row['Wealth Adviser'] || '';
+            const assignee = row['Assignee'] || '';
+            const dueDate = row['Milestone Due Date'] || row['Due Date'] || '';
+            const startDate = row['Milestone Start Date'] || row['Start Date'] || '';
+            const workflowNote = row['Workflow Note'] || '';
+            
+            // Calculate CTM Team from the wealth adviser column
+            const ctmTeam = getCTMTeam(wealthAdviser);
+            
+            // Set up assignee tracking
+            if (!assigneeMap[assignee]) {
+              assigneeMap[assignee] = {
+                total: 0,
+                jobsToDo: 0,
+                withPadua: 0,
+                onHold: 0,
+                other: 0
+              };
+            }
+            assigneeMap[assignee].total++;
+            
+            // Track CTM teams
+            if (!ctmTeamMap[ctmTeam]) {
+              ctmTeamMap[ctmTeam] = 0;
+            }
+            ctmTeamMap[ctmTeam]++;
+            
+            // Categorize tasks by milestone and note
+            const note = workflowNote.toLowerCase();
+            
+            if (milestone === 'Lodge Advice Request') {
+              if (/hold|info required|missing|adviser to review/i.test(note)) {
+                counts['Info Required/On Hold']++;
+                assigneeMap[assignee].onHold++;
+              } else {
+                counts['Lodge Advice Request']++;
+                assigneeMap[assignee].jobsToDo++;
+              }
+            } else if (milestone === 'Update Advice Document') {
+              counts['Update Advice Document']++;
+              assigneeMap[assignee].jobsToDo++;
+            } else if (milestone === 'Padua: Advice Preparation') {
+              counts['SOA with Padua']++;
+              assigneeMap[assignee].withPadua++;
+            } else if (milestone === 'Review Advice Document: Paraplanner') {
+              counts['Findex PP Review Padua SOA']++;
+              assigneeMap[assignee].jobsToDo++;
+            } else if (["Obtain Information", "Confirm Access", "Processing", "Validate Required Form(s) Returned"].includes(milestone)) {
+              if (/hold|info required|missing|adviser to review/i.test(note)) {
+                counts['Research Tasks - On Hold']++;
+                assigneeMap[assignee].onHold++;
+              } else {
+                counts['Research Tasks']++;
+                assigneeMap[assignee].jobsToDo++;
+              }
+            } else if (milestone === 'Prepare Execution Only') {
+              counts['Execution Only']++;
+              assigneeMap[assignee].jobsToDo++;
+            } else {
+              counts['Other']++;
+              assigneeMap[assignee].other++;
+            }
+            
+            // Return processed row with proper structure
+            return {
+              'Entity Name': entityName,
+              'Milestone': milestone,
+              'Wealth Adviser': wealthAdviser,
+              'CTM Team': ctmTeam,
+              'Assignee': assignee,
+              'Due Date': dueDate,
+              'Start Date': startDate,
+              'Workflow Note': workflowNote
+            };
+          });
+        
+        // Update generated date
+        document.getElementById('generatedDate').textContent = 'Date Generated: ' + new Date().toLocaleString();
+        
+        // Render all the views
+        renderSummary();
+        renderCapacityView();
+        renderCTMTable();
+        renderDistributionCharts();
+        
+        // Switch to summary view with animation
+        setTimeout(() => {
+          document.querySelector('[data-section="summarySection"]').click();
+        }, 300);
+        
+      } catch (error) {
+        console.error('Error processing data:', error);
+        alert('Error processing data: ' + error.message);
+      } finally {
+        // Restore button
+        processBtn.innerHTML = originalBtnText;
+      }
+    }
+    
+    // Render summary view
+    function renderSummary() {
+      if (!parsedRows.length) return;
+      
+      const totalTasks = parsedRows.length;
+      const jobsToDo = Object.values(assigneeMap).reduce((sum, data) => sum + data.jobsToDo, 0);
+      const withPadua = Object.values(assigneeMap).reduce((sum, data) => sum + data.withPadua, 0);
+      const onHold = Object.values(assigneeMap).reduce((sum, data) => sum + data.onHold, 0);
+      const other = Object.values(assigneeMap).reduce((sum, data) => sum + data.other, 0);
+      
+      // Render stat cards - using the capacity metrics
+      document.getElementById('statsGrid').innerHTML = `
+        <div class="stat-card purple">
+          <div class="stat-label">Total Tasks</div>
+          <div class="stat-value">${totalTasks}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Jobs To Do</div>
+          <div class="stat-value">${jobsToDo}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">With Padua</div>
+          <div class="stat-value">${withPadua}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">On Hold</div>
+          <div class="stat-value">${onHold}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Other</div>
+          <div class="stat-value">${other}</div>
+        </div>
+      `;
+      
+      // Render summary table in specific order
+      const summaryTableBody = document.querySelector('#summaryTable tbody');
+      summaryTableBody.innerHTML = '';
+      
+      // Define the task order for display
+      const taskOrder = [
+        'Lodge Advice Request',
+        'Info Required/On Hold',
+        'Update Advice Document',
+        'SOA with Padua',
+        'Findex PP Review Padua SOA',
+        'Research Tasks',
+        'Research Tasks - On Hold',
+        'Execution Only',
+        'Other',
+      ];
+      
+      // Total for percentage calculation
+      const total = Object.values(counts).reduce((a, b) => a + b, 0);
+      
+      // Render rows in specified order
+      taskOrder.forEach(task => {
+        if (counts[task] > 0) {
+          const percent = ((counts[task] / total) * 100).toFixed(1);
+          summaryTableBody.innerHTML += `
+            <tr>
+              <td>${task}</td>
+              <td>${counts[task]}</td>
+              <td>${percent}%</td>
+            </tr>
+          `;
+        }
+      });
+      
+      // Add total row
+      summaryTableBody.innerHTML += `
+        <tr style="font-weight:bold; background-color: rgba(55, 65, 81, 0.5);">
+          <td>Total</td>
+          <td>${total}</td>
+          <td>100.0%</td>
+        </tr>
+      `;
+    }
+    
+    // Render improved distribution charts
+    function renderDistributionCharts() {
+      if (!parsedRows.length) return;
+      
+      // Task distribution chart - similar to the image
+      const taskOrder = [
+        'SOA with Padua',
+        'Lodge Advice Request',
+        'Info Required/On Hold',
+        'Findex PP Review Padua SOA', 
+        'Other',
+        'Research Tasks',
+        'Research Tasks - On Hold',
+        'Update Advice Document',
+        'Execution Only'
+      ];
+      
+      const taskDistributionEl = document.getElementById('taskDistribution');
+      taskDistributionEl.innerHTML = '';
+      
+      // Get total and filter to only include tasks with values
+      const taskTotal = Object.values(counts).reduce((a, b) => a + b, 0);
+      const tasksWithCounts = taskOrder
+        .filter(task => counts[task] > 0)
+        .map(task => ({
+          name: task,
+          count: counts[task],
+          percent: Math.round((counts[task] / taskTotal) * 100)
+        }));
+      
+      // Build the task distribution with animation delay
+      tasksWithCounts.forEach((task, index) => {
+        const item = document.createElement('div');
+        item.className = 'distribution-item';
+        item.innerHTML = `
+          <div class="distribution-header">
+            <div class="distribution-name">${task.name}</div>
+            <div class="distribution-count">${task.count} (${task.percent}%)</div>
+          </div>
+          <div class="distribution-bar-container">
+            <div class="distribution-bar" style="width: 0%"></div>
+          </div>
+        `;
+        taskDistributionEl.appendChild(item);
+        
+        // Animate bar width with a delay
+        setTimeout(() => {
+          item.querySelector('.distribution-bar').style.width = `${task.percent}%`;
+        }, 100 * index);
+      });
+      
+      // Assignee distribution - show ALL assignees
+      const assigneeDistributionEl = document.getElementById('assigneeDistribution');
+      assigneeDistributionEl.innerHTML = '';
+      
+      // Get ALL assignees, not just top 10
+      const allAssignees = Object.entries(assigneeMap)
+        .sort((a, b) => b[1].total - a[1].total)
+        .map(([name, data]) => ({
+          name: name || 'Unassigned',
+          count: data.total,
+          taskText: data.total === 1 ? "task" : "tasks"
+        }));
+      
+      const maxAssigneeCount = Math.max(...allAssignees.map(a => a.count));
+      
+      // Build the assignee distribution with animation delay
+      allAssignees.forEach((assignee, index) => {
+        const item = document.createElement('div');
+        item.className = 'distribution-item';
+        item.innerHTML = `
+          <div class="distribution-header">
+            <div class="distribution-name">${assignee.name}</div>
+            <div class="distribution-count">${assignee.count} ${assignee.taskText}</div>
+          </div>
+          <div class="distribution-bar-container">
+            <div class="distribution-bar" style="width: 0%"></div>
+          </div>
+        `;
+        assigneeDistributionEl.appendChild(item);
+        
+        // Animate bar width with a delay
+        setTimeout(() => {
+          item.querySelector('.distribution-bar').style.width = `${(assignee.count / maxAssigneeCount) * 100}%`;
+        }, 50 * index);
+      });
+      
+      // CTM Team distribution - show ALL teams
+      const teamDistributionEl = document.getElementById('teamDistribution');
+      teamDistributionEl.innerHTML = '';
+      
+      // Get ALL teams, not just top 10
+      const allTeams = Object.entries(ctmTeamMap)
+        .sort((a, b) => b[1] - a[1])
+        .map(([name, count]) => ({ 
+          name, 
+          count,
+          taskText: count === 1 ? "task" : "tasks"
+        }));
+      
+      const maxTeamCount = Math.max(...allTeams.map(t => t.count));
+      
+      // Build the team distribution with animation delay
+      allTeams.forEach((team, index) => {
+        const item = document.createElement('div');
+        item.className = 'distribution-item';
+        item.innerHTML = `
+          <div class="distribution-header">
+            <div class="distribution-name">${team.name}</div>
+            <div class="distribution-count">${team.count} ${team.taskText}</div>
+          </div>
+          <div class="distribution-bar-container">
+            <div class="distribution-bar" style="width: 0%"></div>
+          </div>
+        `;
+        teamDistributionEl.appendChild(item);
+        
+        // Animate bar width with a delay
+        setTimeout(() => {
+          item.querySelector('.distribution-bar').style.width = `${(team.count / maxTeamCount) * 100}%`;
+        }, 50 * index);
+      });
+    }
+    
+    // Render capacity view
+    function renderCapacityView() {
+      if (!parsedRows.length) return;
+      
+      const capacityTableBody = document.querySelector('#capacityTable tbody');
+      capacityTableBody.innerHTML = '';
+      
+      // Get total across all assignees for each category
+      const totals = {
+        jobsToDo: 0,
+        withPadua: 0,
+        onHold: 0,
+        other: 0,
+        total: 0
+      };
+      
+      Object.values(assigneeMap).forEach(data => {
+        totals.jobsToDo += data.jobsToDo;
+        totals.withPadua += data.withPadua;
+        totals.onHold += data.onHold;
+        totals.other += data.other;
+        totals.total += data.total;
+      });
+      
+      // Render assignee rows
+      Object.entries(assigneeMap)
+        .sort((a, b) => b[1].total - a[1].total)
+        .forEach(([name, data]) => {
+          // Determine if cells need highlighting
+          const jobsToDoClass = data.jobsToDo > 10 ? 'text-red' : (data.jobsToDo < 5 ? 'text-green' : '');
+          const withPaduaClass = data.withPadua > 10 ? 'text-red' : '';
+          const onHoldClass = data.onHold > 5 ? 'text-red' : '';
+          
+          capacityTableBody.innerHTML += `
+            <tr>
+              <td>${name || 'Unassigned'}</td>
+              <td class="${jobsToDoClass}">${data.jobsToDo}</td>
+              <td class="${withPaduaClass}">${data.withPadua}</td>
+              <td class="${onHoldClass}">${data.onHold}</td>
+              <td>${data.other}</td>
+              <td>${data.total}</td>
+            </tr>
+          `;
+        });
+      
+      // Add total row
+      capacityTableBody.innerHTML += `
+        <tr style="font-weight:bold; background-color: rgba(55, 65, 81, 0.5);">
+          <td>Total</td>
+          <td>${totals.jobsToDo}</td>
+          <td>${totals.withPadua}</td>
+          <td>${totals.onHold}</td>
+          <td>${totals.other}</td>
+          <td>${totals.total}</td>
+        </tr>
+      `;
+    }
+    
+    // Update filter options based on selected filter type
+    function updateFilterOptions() {
+      const filterType = document.getElementById('ctmFilterType').value;
+      const filterValue = document.getElementById('ctmFilterValue');
+      
+      // Clear existing options
+      filterValue.innerHTML = '<option value="">Select value</option>';
+      
+      if (!filterType) return;
+      
+      // Get unique values for selected filter
+      const values = [...new Set(parsedRows.map(row => row[filterType]))].filter(Boolean);
+      values.sort().forEach(value => {
+        const option = document.createElement('option');
+        option.value = option.textContent = value;
+        filterValue.appendChild(option);
+      });
+    }
+    
+    // Clear CTM filters
+    function clearCTMFilters() {
+      document.getElementById('ctmFilterType').value = '';
+      document.getElementById('ctmFilterValue').innerHTML = '<option value="">Select value</option>';
+      renderCTMTable();
+    }
+    
+    // Render CTM team table
+    function renderCTMTable() {
+      if (!parsedRows.length) return;
+      
+      const filterType = document.getElementById('ctmFilterType').value;
+      const filterValue = document.getElementById('ctmFilterValue').value;
+      
+      // Apply filters if any
+      let filteredRows = parsedRows;
+      if (filterType && filterValue) {
+        filteredRows = parsedRows.filter(row => row[filterType] === filterValue);
+      }
+      
+      const ctmTableBody = document.querySelector('#ctmTable tbody');
+      ctmTableBody.innerHTML = '';
+      
+      filteredRows.forEach(row => {
+        ctmTableBody.innerHTML += `
+          <tr>
+            <td>${row['Entity Name'] || ''}</td>
+            <td>${row['Milestone'] || ''}</td>
+            <td>${row['Wealth Adviser'] || ''}</td>
+            <td>${row['CTM Team'] || ''}</td>
+            <td>${row['Assignee'] || ''}</td>
+            <td>${row['Due Date'] || ''}</td>
+            <td>${row['Start Date'] || ''}</td>
+            <td>${row['Workflow Note'] || ''}</td>
+          </tr>
+        `;
+      });
+    }
+    
+    // Export table to CSV/Excel
+    function exportToCSV(sectionId) {
+      const section = document.getElementById(sectionId);
+      if (!section) return;
+      
+      const tables = section.querySelectorAll('table');
+      if (!tables.length) {
+        alert('No table data to export.');
+        return;
+      }
+      
+      // Create workbook
+      const wb = XLSX.utils.book_new();
+      
+      // Add each table as a separate sheet
+      tables.forEach((table, index) => {
+        const ws = XLSX.utils.table_to_sheet(table);
+        const sheetName = table.id || `Sheet${index + 1}`;
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+      });
+      
+      // Generate filename with date
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      const filename = `CTM_Dashboard_Export_${dateStr}.xlsx`;
+      
+      // Save file
+      XLSX.writeFile(wb, filename);
+    }
+    
+    // Export to PDF
+    function exportToPDF(sectionId) {
+      const { jsPDF } = window.jspdf;
+      const section = document.getElementById(sectionId);
+      
+      if (!section) {
+        alert('No content to export.');
+        return;
+      }
+      
+      // Create new document
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 10;
+      
+      // Add title
+      doc.setFontSize(16);
+      doc.setTextColor(0, 0, 0); // Black text for PDF
+      doc.text('CTM Task Dashboard Report', margin, margin + 10);
+      doc.setFontSize(10);
+      doc.text(document.getElementById('generatedDate').textContent, margin, margin + 20);
+      
+      // Convert section to image
+      html2canvas(section, {
+        scale: 2,
+        backgroundColor: '#1E293B',
+        logging: false,
+        allowTaint: true,
+        useCORS: true
+      }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = pageWidth - (margin * 2);
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        
+        // Add image to document
+        doc.addImage(imgData, 'PNG', margin, margin + 25, imgWidth, imgHeight);
+        
+        // Save file
+        const now = new Date();
+        const dateStr = now.toISOString().split('T')[0];
+        doc.save(`CTM_Dashboard_Report_${dateStr}.pdf`);
+      });
+    }
+  </script>
+</body>
+</html>
